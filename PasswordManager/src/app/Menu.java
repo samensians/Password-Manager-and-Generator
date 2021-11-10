@@ -1,4 +1,4 @@
-package main;
+package app;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -15,10 +15,10 @@ import javax.swing.JSeparator;
 import javax.swing.border.EmptyBorder;
 import javax.swing.SwingUtilities;
 
-public class Main extends JFrame {
-    final static int BUTTON_VGAP = 20;
+public class Menu extends JFrame {
+    private final int BUTTON_VGAP = 20;
 
-    public Main(String windowName) {
+    public Menu(String windowName) {
         super(windowName);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setResizable(false);
@@ -27,14 +27,15 @@ public class Main extends JFrame {
 
     private void addComponentsToPane(final Container pane) {
         // Create panels and set layouts
+        JPanel titlePanel = new JPanel();
+        String titleText = "<html><h2>Password Generator and Manager</h2></html>";
+        titlePanel.add(new JLabel(titleText, JLabel.CENTER));
+
         GridLayout buttonLayout = new GridLayout(2, 1);
         buttonLayout.setVgap(BUTTON_VGAP);
         JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout(buttonLayout);
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        JPanel titlePanel = new JPanel();
-        String titleText = "<html><h2>Password Generator and Manager</h2></html>";
-        titlePanel.add(new JLabel(titleText, JLabel.CENTER));
 
         // Create buttons and add action listeners
         JButton toPasswordGeneratorButton = new JButton("Password Generator");
@@ -42,8 +43,12 @@ public class Main extends JFrame {
         toPasswordGeneratorButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                JButton pressed = (JButton) (e.getSource());
-                System.out.println("Pressed " + pressed.getText());
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        new PasswordGenerator("Password Generator").createAndShowGUI();
+                    }
+                });
+                dispose();
             }
         });
         
@@ -52,8 +57,12 @@ public class Main extends JFrame {
         toPasswordManagerButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                JButton pressed = (JButton) (e.getSource());
-                System.out.println("Pressed " + pressed.getText());
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        // new PasswordManager("Password Manager").createAndShowGUI();
+                    }
+                });
+                dispose();
             }
         });
         
@@ -67,9 +76,9 @@ public class Main extends JFrame {
         pane.add(buttonPanel, BorderLayout.SOUTH);
     }
 
-    private static void createAndShowMenu() {
+    public static void createAndShowGUI() {
         // Create the menu window 
-        Main menu = new Main("Password Generator and Manager");
+        Menu menu = new Menu("Password Generator and Manager");
         // Add the content to the pane
         menu.addComponentsToPane(menu.getContentPane());
         // Display the window
@@ -80,7 +89,7 @@ public class Main extends JFrame {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
-                createAndShowMenu();
+                createAndShowGUI();
             }
         });
     }

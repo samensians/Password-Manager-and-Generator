@@ -35,10 +35,17 @@ import javax.swing.border.EmptyBorder;
  * and to switch over to the password manager.
  */
 public class PasswordGenerator extends JFrame {
+    // Styling constants
     private final int OPTIONS_VGAP = 20;
     private final int OPTIONS_HGAP = 30;
     private final int BUTTONS_VGAP = 10;
     private final int BUTTONS_HGAP = 10;
+
+    // Character sets used in password generation
+    private final char[] LOWER = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+    private final char[] UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+    private final char[] NUMBERS = "0123456789".toCharArray();
+    private final char[] SYMBOLS = "^$*.[]{}()?-\"!@#%&/\\,><':;_~".toCharArray();
 
     /**
      * Create a <code>JFrame</code> to add GUI components to.
@@ -58,7 +65,7 @@ public class PasswordGenerator extends JFrame {
      *
      * @param pane the container that the components are added to
      */
-    private void addComponentsToPane(final Container pane) {
+    private void addComponents(final Container pane) {
         // Create panels and set styling and layouts
         String titleText = "<html><h2>Password Generator</h2></html>";
         JPanel titlePanel = new JPanel();
@@ -126,6 +133,18 @@ public class PasswordGenerator extends JFrame {
 
         // Add action listeners to buttons
         generateButton.addActionListener(new ActionListener() {
+            /**
+             * Gets values from option boxes and generates password using
+             * <code>generatePassword</code>. The generated password is displayed
+             * in the text field.
+             * <p>
+             * The state of the checkbox options are stored in a HashMap as booleans
+             * with strings that denote the option that the boolean relates to. This
+             * HashMap is used in the <code>generatePassword</code> function to determine
+             * the character set used when generating the password.
+             *
+             * @param e the event being processed
+             */
             @Override
             public void actionPerformed(ActionEvent e) {
                 int passwordLength = (int) passwordLengthOptions.getSelectedItem();
@@ -139,6 +158,11 @@ public class PasswordGenerator extends JFrame {
         });
 
         copyButton.addActionListener(new ActionListener() {
+            /**
+             * Adds the text displayed in the text field to the clipboard.
+             *
+             * @param e the event being processed
+             */
             @Override
             public void actionPerformed(ActionEvent e) {
                 Toolkit.getDefaultToolkit()
@@ -150,8 +174,9 @@ public class PasswordGenerator extends JFrame {
         savePasswordButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // give optionPane to ask for name to save password with
-                // user can then return into this window
+                // TODO:
+                // Give optionPane to ask for account name to associate
+                // password with, then return user into this window
                 System.out.println("Saving password");
             }
         });
@@ -199,7 +224,6 @@ public class PasswordGenerator extends JFrame {
     private String generatePassword(Integer passwordLength, HashMap<String, Boolean> checkBoxOptions) {
         // Define variables and add a random lowercase character to the password
         Random rand = new SecureRandom();
-        char[] LOWER = "abcdefghijklmnopqrstuvwxyz".toCharArray();
         char[] password = new char[passwordLength];
         password[0] = LOWER[rand.nextInt(LOWER.length)];
         int passwordIndex = 1;
@@ -213,20 +237,18 @@ public class PasswordGenerator extends JFrame {
         boolean includeSymbols = checkBoxOptions.get("includeSymbols");
 
         // Include at least one character from required character sets
+        // and add required character sets to the global character set
         if (includeUppercase) {
-            char[] UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
             password[passwordIndex] = UPPER[rand.nextInt(UPPER.length)];
             charSet += String.valueOf(UPPER);
             passwordIndex++;
         }
         if (includeNumbers) {
-            char[] NUMBERS = "0123456789".toCharArray();
             password[passwordIndex] = NUMBERS[rand.nextInt(NUMBERS.length)];
             charSet += String.valueOf(NUMBERS);
             passwordIndex++;
         }
         if (includeSymbols) {
-            char[] SYMBOLS = "^$*.[]{}()?-\"!@#%&/\\,><':;_~".toCharArray();
             password[passwordIndex] = SYMBOLS[rand.nextInt(SYMBOLS.length)];
             charSet += String.valueOf(SYMBOLS);
             passwordIndex++;
@@ -257,11 +279,11 @@ public class PasswordGenerator extends JFrame {
     /**
      * Creates an instance of the GUI and adds components, then displays the window.
      */
-    public void createAndShowGUI() {
+    public void createAndShowWindow() {
         // Create generator window
         PasswordGenerator passwordGenerator = new PasswordGenerator("Password Generator");
         // Add the content to the pane
-        passwordGenerator.addComponentsToPane(passwordGenerator.getContentPane());
+        passwordGenerator.addComponents(passwordGenerator.getContentPane());
         // Display the window
         passwordGenerator.pack();
         passwordGenerator.setVisible(true);

@@ -85,7 +85,7 @@ public class PasswordManager extends JFrame {
         accountTable.setModel(accountTableModel);
         
         accountTableModel.addColumn("Accounts");
-        updateAccountList(accountPasswordPairs, accountTableModel);
+        updateAccountTable(accountPasswordPairs, accountTableModel);
         JScrollPane accountTableSP = new JScrollPane(accountTable);
         accountTableSP.setPreferredSize(new Dimension(buttonsPanel.getSize().width, 200));
 
@@ -180,7 +180,7 @@ public class PasswordManager extends JFrame {
      * @param accountTableModel the table model that displays the currently stored
      *                          account names
      */
-    private void updateAccountList(HashMap<String, String> accountPasswordPairs, DefaultTableModel accountTableModel) {
+    private void updateAccountTable(HashMap<String, String> accountPasswordPairs, DefaultTableModel accountTableModel) {
         accountTableModel.setRowCount(0);
         Object[] accountNames = accountPasswordPairs.keySet().toArray();
         Arrays.sort(accountNames);
@@ -273,7 +273,7 @@ public class PasswordManager extends JFrame {
         accountPasswordPairs.put(accountNameTextField.getText(), passwordTextField.getText());
         JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
         updateHashedFile(accountPasswordPairs);
-        updateAccountList(accountPasswordPairs, accountTableModel);
+        updateAccountTable(accountPasswordPairs, accountTableModel);
         // TODO: Hash passwords
     }
 

@@ -3,8 +3,10 @@ package app;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.awt.BorderLayout;
 import java.awt.Container;
@@ -74,9 +76,8 @@ public class PasswordManager extends JFrame {
         buttonsPanelLayout.setHgap(BUTTONS_HGAP);
         buttonsPanel.setLayout(buttonsPanelLayout);
 
-        // Get account name and password values from hashed.txt file and store in arrays
+        // Create HashMap of account name and password pairs from hashed.txt file
         HashMap<String, String> accountPasswordPairs = readHashedFile();
-        Object[] accountNames = accountPasswordPairs.keySet().toArray();
 
         // Create and populate table of account names
         JTable accountTable = new JTable();
@@ -84,9 +85,7 @@ public class PasswordManager extends JFrame {
         accountTable.setModel(accountTableModel);
         
         accountTableModel.addColumn("Accounts");
-        for (Object account:accountNames) {
-            accountTableModel.addRow(new Object[] {account});
-        }
+        updateAccountList(accountPasswordPairs, accountTableModel);
         JScrollPane accountTableSP = new JScrollPane(accountTable);
         accountTableSP.setPreferredSize(new Dimension(buttonsPanel.getSize().width, 200));
 
@@ -100,8 +99,7 @@ public class PasswordManager extends JFrame {
         addButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // open popup (JOptionPane)
-                createAddAccountOptionPane(accountPasswordPairs);
+                createAddAccountOptionPane(accountPasswordPairs, accountTableModel);
                 // enter account name and password
                 // check for unique account name (check for inclusion in hashmap keys)
             }
@@ -171,10 +169,55 @@ public class PasswordManager extends JFrame {
     }
 
     /**
-     * When the manager is closed, write over the hashed file with the updated
-     * account names and passwords.
+     * Updates the account table when an account is added or removed. All rows
+     * are removed from the table and then the table is repopulated using the
+     * account names in the HashMap. The account names are sorted before they
+     * are added to the table.
+     * 
+     * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
+     *                             function containing the current state of the saved account
+     *                             names and passwords
+     * @param accountTableModel the table model that displays the currently stored
+     *                          account names
      */
-    private void updateHashedFile(String[] accountNames, String[] accountPasswords) {}
+    private void updateAccountList(HashMap<String, String> accountPasswordPairs, DefaultTableModel accountTableModel) {
+        accountTableModel.setRowCount(0);
+        Object[] accountNames = accountPasswordPairs.keySet().toArray();
+        Arrays.sort(accountNames);
+        for (Object account:accountNames) {
+            accountTableModel.addRow(new Object[] {account});
+        }
+    }
+
+    /**
+     * When a password is added or removed, update the hashed.txt file with the account name
+     * and password pairs in the HashMap.
+     * 
+     * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
+     *                             function containing the current state of the saved account
+     *                             names and passwords
+     */
+    private void updateHashedFile(HashMap<String, String> accountPasswordPairs) {
+        // Write over hashed.txt with the account names and passwords currently in the HashMap
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter("." + File.separator + "PasswordManager/hashed.txt", false));
+            Object[] accountNames = accountPasswordPairs.keySet().toArray();
+            for (int i = 0; i < accountNames.length; i++) {
+                writer.write((String) accountNames[i]);
+                writer.newLine();
+                writer.write((String) accountPasswordPairs.get(accountNames[i]));
+
+                // Avoid writing newlines at the end of the file
+                if (!(i == accountNames.length - 1)) {
+                    writer.newLine();
+                    writer.newLine();
+                }
+            }
+            writer.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * Creates and shows a JOptionPane that takes an account name and password
@@ -185,8 +228,10 @@ public class PasswordManager extends JFrame {
      * 
      * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
      *                             function
+     * @param accountTableModel the table model that displays the currently stored
+     *                          account names
      */
-    private void createAddAccountOptionPane(HashMap<String, String> accountPasswordPairs) {
+    private void createAddAccountOptionPane(HashMap<String, String> accountPasswordPairs, DefaultTableModel accountTableModel) {
         // Create the option pane content
         JTextField accountNameTextField = new JTextField(20);
         JTextField passwordTextField = new JPasswordField(20);
@@ -226,9 +271,10 @@ public class PasswordManager extends JFrame {
             break;
         }
         accountPasswordPairs.put(accountNameTextField.getText(), passwordTextField.getText());
-        JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Success", JOptionPane.INFORMATION_MESSAGE);
-        System.out.println(accountPasswordPairs.keySet());
-        // updateAccountList();
+        JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
+        updateHashedFile(accountPasswordPairs);
+        updateAccountList(accountPasswordPairs, accountTableModel);
+        // TODO: Hash passwords
     }
 
     /**

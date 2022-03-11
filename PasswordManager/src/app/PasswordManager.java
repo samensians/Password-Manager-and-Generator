@@ -1,6 +1,7 @@
 package app;
 
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -8,6 +9,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -15,6 +20,14 @@ import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -30,16 +43,23 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
 /**
- * Creates a GUI to manage saved passwords. Saved passwords are hashed and
- * stored in a text file in the same file as the application. Passwords can be added,
- * removed or edited, and must be added with a unique string representing the
- * account the password is associated with. This unique string/account name is what
- * is displayed to the user so they know what passwords they are managing.
+ * Creates a GUI to manage saved passwords. Saved passwords are encrypted and
+ * stored in a text file in the same file as the application. Passwords are
+ * encrypted using a secret key generated from a static password, meaning that
+ * the encrypted passwords are likely not secure. The goal of the encryption is
+ * to prevent the passwords from being read by someone looking in the accounts.txt
+ * file. Passwords can be added, removed or edited, and must be added with a unique
+ * string representing the account the password is associated with. This unique
+ * string/account name is what is displayed to the user so they know what passwords
+ * they are managing.
  */
 public class PasswordManager extends JFrame {
     // Styling constants
     private final int BUTTONS_VGAP = 10;
     private final int BUTTONS_HGAP = 10;
+
+    // Password used in encryption
+    private final String CIPHER_PASS = "passwordToTestEncryption";
 
     /**
      * Create a <code>JFrame</code> to add GUI components to.
@@ -76,8 +96,8 @@ public class PasswordManager extends JFrame {
         buttonsPanelLayout.setHgap(BUTTONS_HGAP);
         buttonsPanel.setLayout(buttonsPanelLayout);
 
-        // Create HashMap of account name and password pairs from hashed.txt file
-        HashMap<String, String> accountPasswordPairs = readHashedFile();
+        // Create HashMap of account name and password pairs from accounts.txt file
+        HashMap<String, String> accountPasswordPairs = readAccountsFile();
 
         // Create and populate table of account names
         JTable accountTable = new JTable();
@@ -123,23 +143,60 @@ public class PasswordManager extends JFrame {
     }
 
     /**
-     * Reads the account names their respective hashed passwords into a hashmap
-     * as pairs. If the file "hashed.txt" does not exist, it is created and an
+     * Generates a secret key from the password that the user sets when they first launch the
+     * application. The secret key is used to encrypt the passwords before they are written
+     * to the accounts file.
+     *
+     * @return the secret key generated from the cipher password
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeySpecException
+     */
+    private SecretKey getSecretKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
+        SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        String salt = "testSalt";
+        KeySpec secretSpec = new PBEKeySpec(CIPHER_PASS.toCharArray(), salt.getBytes(), 65536, 256);
+        SecretKey secretKey = new SecretKeySpec(secretKeyFactory.generateSecret(secretSpec).getEncoded(), "AES");
+        return secretKey;
+    }
+
+    /**
+     * Encrypts a password/string using the AES algorithm.
+     *
+     * @param password the password/string to be encrypted
+     * @param secretKey the secret key to be used in encryption
+     * @return the encrypted password as a string
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws InvalidKeyException
+     * @throws IllegalBlockSizeException
+     * @throws BadPaddingException
+     */
+    private String encryptPassword(String password, SecretKey secretKey)
+        throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+        IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        return Base64.getEncoder().encodeToString(cipher.doFinal(password.getBytes()));
+    }
+
+    /**
+     * Reads the account names their respective accounts passwords into a hashmap
+     * as pairs. If the file "accounts.txt" does not exist, it is created and an
      * empty hashmap is returned.
      * 
      * @return accountPasswordPairs, a HashMap containing account names as keys
      *         and the accounts assoicated password as the value
      */
-    private HashMap<String, String> readHashedFile() {
+    private HashMap<String, String> readAccountsFile() {
         // Create HashMap of account name and their associated passwords
         HashMap<String, String> accountPasswordPairs = new HashMap<>();
 
-        // Assert that hashed.txt exists and create it if not
+        // Assert that accounts.txt exists and create it if not
         File curDir = new File("." + File.separator + "PasswordManager");
         String[] fileNames = curDir.list();
-        boolean hashedFileExists = Arrays.stream(fileNames).anyMatch("hashed.txt"::equals);
-        if (!hashedFileExists) {
-            File passwordFile = new File("hashed.txt");
+        boolean accountsFileExists = Arrays.stream(fileNames).anyMatch("accounts.txt"::equals);
+        if (!accountsFileExists) {
+            File passwordFile = new File("." + File.separator + "PasswordManager" + File.separator + "accounts.txt");
             try {
                 passwordFile.createNewFile();
             } catch (IOException e) {
@@ -148,17 +205,17 @@ public class PasswordManager extends JFrame {
             return accountPasswordPairs;
         }
 
-        // Read account names and hashed passwords and store in arrays
+        // Read account names and accounts passwords and store in arrays
         // An account name is related to a password by having matching indexes
         try {
-            BufferedReader reader = new BufferedReader(new FileReader("." + File.separator + "PasswordManager/hashed.txt"));
+            BufferedReader reader = new BufferedReader(new FileReader("." + File.separator + "PasswordManager/accounts.txt"));
             String accountName = reader.readLine();
             while (accountName != null) {
                 if (accountName.isEmpty()) {
                     accountName = reader.readLine();
                 }
-                String hashedPassword = reader.readLine();
-                accountPasswordPairs.put(accountName, hashedPassword);
+                String accountsPassword = reader.readLine();
+                accountPasswordPairs.put(accountName, accountsPassword);
                 accountName = reader.readLine();
             }
             reader.close();
@@ -174,7 +231,7 @@ public class PasswordManager extends JFrame {
      * account names in the HashMap. The account names are sorted before they
      * are added to the table.
      * 
-     * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
+     * @param accountPasswordPairs the HashMap created by the <code>readAccountsFile</code>
      *                             function containing the current state of the saved account
      *                             names and passwords
      * @param accountTableModel the table model that displays the currently stored
@@ -190,17 +247,17 @@ public class PasswordManager extends JFrame {
     }
 
     /**
-     * When a password is added or removed, update the hashed.txt file with the account name
+     * When a password is added or removed, update the accounts.txt file with the account name
      * and password pairs in the HashMap.
      * 
-     * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
+     * @param accountPasswordPairs the HashMap created by the <code>readAccountsFile</code>
      *                             function containing the current state of the saved account
      *                             names and passwords
      */
-    private void updateHashedFile(HashMap<String, String> accountPasswordPairs) {
-        // Write over hashed.txt with the account names and passwords currently in the HashMap
+    private void updateAccountsFile(HashMap<String, String> accountPasswordPairs) {
+        // Write over accounts.txt with the account names and passwords currently in the HashMap
         try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter("." + File.separator + "PasswordManager/hashed.txt", false));
+            BufferedWriter writer = new BufferedWriter(new FileWriter("." + File.separator + "PasswordManager/accounts.txt", false));
             Object[] accountNames = accountPasswordPairs.keySet().toArray();
             for (int i = 0; i < accountNames.length; i++) {
                 writer.write((String) accountNames[i]);
@@ -214,7 +271,7 @@ public class PasswordManager extends JFrame {
                 }
             }
             writer.close();
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -226,7 +283,7 @@ public class PasswordManager extends JFrame {
      * user presses the OK button. If not, a dialog box will appear with a message
      * telling the user that their account name must be unique.
      * 
-     * @param accountPasswordPairs the HashMap created by the <code>readHashedFile</code>
+     * @param accountPasswordPairs the HashMap created by the <code>readAccountsFile</code>
      *                             function
      * @param accountTableModel the table model that displays the currently stored
      *                          account names
@@ -270,11 +327,18 @@ public class PasswordManager extends JFrame {
             // Exit loop once inputs are valid
             break;
         }
-        accountPasswordPairs.put(accountNameTextField.getText(), passwordTextField.getText());
+
+        try {
+            accountPasswordPairs.put(accountNameTextField.getText(), encryptPassword(passwordTextField.getText(), getSecretKey()));
+        } catch(Exception e) {
+            e.printStackTrace();
+            // TODO: notify user of this
+            System.out.println("Encryption failed, password not saved.");
+            return;
+        }
         JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
-        updateHashedFile(accountPasswordPairs);
+        updateAccountsFile(accountPasswordPairs);
         updateAccountTable(accountPasswordPairs, accountTableModel);
-        // TODO: Hash passwords
     }
 
     /**

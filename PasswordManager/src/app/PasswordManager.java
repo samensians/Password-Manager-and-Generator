@@ -117,11 +117,38 @@ public class PasswordManager extends JFrame {
 
         // Add action listeners to buttons
         addButton.addActionListener(new ActionListener() {
+            /**
+             * Calls <code>createAddAccountOptionPane</code> which creates a window for the user to
+             * add a new account and password. This function validates the users input and updates
+             * the accounts file and accounts table as needed.
+             * 
+             * @param e the event being processed
+             */
             @Override
             public void actionPerformed(ActionEvent e) {
                 createAddAccountOptionPane(accountPasswordPairs, accountTableModel);
-                // enter account name and password
-                // check for unique account name (check for inclusion in hashmap keys)
+            }
+        });
+
+        removeButton.addActionListener(new ActionListener() {
+            /**
+             * Removes the selected account from the manager. When the user selects an account/row from
+             * the table and presses the remove button, the account name is taken and the matching key-value
+             * pair is removed from the HashMap. The accounts file is then updated followed by the accounts
+             * table being updated. The function returns if a row is not selected.
+             * 
+             * @param e the event being processed
+             */
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int selectedRowIndex = accountTable.getSelectedRow();
+                if (selectedRowIndex == -1)
+                    return;
+                
+                String accountToRemove = accountTable.getValueAt(selectedRowIndex, 0).toString();
+                accountPasswordPairs.remove(accountToRemove);
+                updateAccountsFile(accountPasswordPairs);
+                updateAccountTable(accountPasswordPairs, accountTableModel);
             }
         });
         // TODO: add action listeners to buttons
@@ -177,6 +204,27 @@ public class PasswordManager extends JFrame {
         Cipher cipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secretKey);
         return Base64.getEncoder().encodeToString(cipher.doFinal(password.getBytes()));
+    }
+
+    /**
+     * Decrypts an encrypted password into plaintext. The password was previously encrypted using the
+     * <code>encryptPassword</code> method.
+     *
+     * @param encryptedPassword the password encrypted using <code>encryptPassword</code>
+     * @param secretKey the secret key that was used in encryption
+     * @return the decrypted password
+     * @throws NoSuchPaddingException
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeyException
+     * @throws BadPaddingException
+     * @throws IllegalBlockSizeException
+     */
+    private String decryptPassword(String encryptedPassword, SecretKey secretKey)
+        throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+        IllegalBlockSizeException, BadPaddingException {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+        return new String(cipher.doFinal(Base64.getDecoder().decode(encryptedPassword)));
     }
 
     /**

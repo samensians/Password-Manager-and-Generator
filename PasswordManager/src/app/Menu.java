@@ -68,7 +68,7 @@ public class Menu extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 SwingUtilities.invokeLater(new Runnable() {
                     public void run() {
-                        new app.PasswordGenerator("Password Generator").createAndShowWindow();
+                        new PasswordGenerator("Password Generator").createAndShowWindow();
                     }
                 });
                 dispose();

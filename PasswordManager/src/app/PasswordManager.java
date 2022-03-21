@@ -6,9 +6,12 @@ import java.util.HashMap;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
@@ -19,6 +22,8 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -28,6 +33,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -38,7 +44,9 @@ import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 
@@ -134,8 +142,8 @@ public class PasswordManager extends JFrame {
             /**
              * Removes the selected account from the manager. When the user selects an account/row from
              * the table and presses the remove button, the account name is taken and the matching key-value
-             * pair is removed from the HashMap. The accounts file is then updated followed by the accounts
-             * table being updated. The function returns if a row is not selected.
+             * pair is removed from the accountPasswordPairs HashMap. The accounts file is then updated
+             * followed by the accounts table being updated. The function returns if a row is not selected.
              * 
              * @param e the event being processed
              */
@@ -151,7 +159,54 @@ public class PasswordManager extends JFrame {
                 updateAccountTable(accountPasswordPairs, accountTableModel);
             }
         });
-        // TODO: add action listeners to buttons
+
+        copyButton.addActionListener(new ActionListener() {
+            /**
+             * When the user selects an account/row from the table and presses the copy button, the account
+             * name is used to retrieve the associated value (the password) from the accountPasswordPairs
+             * HashMap. The password is passed through the decryption method to retrieve the plaintext
+             * version of the password which is then copied to the clipboard.
+             * 
+             * @param e the event being processed
+             */
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                int selectedRowIndex = accountTable.getSelectedRow();
+                if (selectedRowIndex == -1)
+                    return;
+
+                String selectedAccountName = accountTable.getValueAt(selectedRowIndex, 0).toString();
+                try {
+                    Toolkit.getDefaultToolkit()
+                           .getSystemClipboard()
+                           .setContents(new StringSelection(
+                               decryptPassword(accountPasswordPairs.get(selectedAccountName), getSecretKey())), null);
+                } catch (Exception err) {
+                    JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Decryption failed, password not copied."),
+                        "Password decryption failure", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+        });
+
+        toPasswordGeneratorButton.addActionListener(new ActionListener() {
+            /**
+             * Creates a <code>PasswordGenerator</code> instance and creates
+             * and shows the password manager GUI. Then closes/disposes the
+             * password generator window.
+             *
+             * @param e the event being processed
+             */
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        new PasswordGenerator("Password Generator").createAndShowWindow();
+                    }
+                });
+                dispose();
+            }
+        });
 
         // Add buttons to the buttons panel
         buttonsPanel.add(addButton);
@@ -247,8 +302,16 @@ public class PasswordManager extends JFrame {
             File passwordFile = new File("." + File.separator + "PasswordManager" + File.separator + "accounts.txt");
             try {
                 passwordFile.createNewFile();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException err) {
+                JOptionPane.showMessageDialog(null, createErrorTextArea(err, "File accounts.txt creation failed, closing program."),
+                    "Password file creation failure", JOptionPane.ERROR_MESSAGE);
+                
+                // Wait for the window creation to finish before disposing it
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        dispose();
+                    }
+                });
             }
             return accountPasswordPairs;
         }
@@ -267,8 +330,26 @@ public class PasswordManager extends JFrame {
                 accountName = reader.readLine();
             }
             reader.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (FileNotFoundException err) {
+            JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Error locating accounts.txt. File should exist, closing program."),
+                    "File accounts.txt not found", JOptionPane.ERROR_MESSAGE);
+                            
+            // Wait for the window creation to finish before disposing it
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    dispose();
+                }
+            });
+        } catch (IOException err) {
+            JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Error accessing accounts.txt, closing program."),
+                    "File accounts.txt unaccessible", JOptionPane.ERROR_MESSAGE);
+                            
+            // Wait for the window creation to finish before disposing it
+            SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    dispose();
+                }
+            });
         }
         return accountPasswordPairs;
     }
@@ -319,8 +400,11 @@ public class PasswordManager extends JFrame {
                 }
             }
             writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException err) {
+            JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Error writing to accounts.txt, closing program."),
+                    "Writing to accounts.txt error", JOptionPane.ERROR_MESSAGE);
+            dispose();
         }
     }
 
@@ -351,7 +435,7 @@ public class PasswordManager extends JFrame {
             int input = JOptionPane.showConfirmDialog(null, message, "Option", JOptionPane.OK_CANCEL_OPTION);
 
             // Do nothing if cancel button is pressed
-            if (input == JOptionPane.CANCEL_OPTION)
+            if (input == JOptionPane.CANCEL_OPTION || input == JOptionPane.CLOSED_OPTION)
                 return;
 
             // Get the inputs from the text fields
@@ -378,15 +462,33 @@ public class PasswordManager extends JFrame {
 
         try {
             accountPasswordPairs.put(accountNameTextField.getText(), encryptPassword(passwordTextField.getText(), getSecretKey()));
-        } catch(Exception e) {
-            e.printStackTrace();
-            // TODO: notify user of this
-            System.out.println("Encryption failed, password not saved.");
+        } catch (Exception err) {
+            JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Encryption failed, password not saved."),
+                "Password save failure", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
         updateAccountsFile(accountPasswordPairs);
         updateAccountTable(accountPasswordPairs, accountTableModel);
+    }
+
+    /**
+     * Converts the backtrace of an exception to a string, which is then placed into a <code>JTextArea</code>
+     * so that the user can be displayed the error as well as copy the error backtrace.
+     * 
+     * @param e the caught exception
+     * @param message a string to display to the user telling them about the error
+     * @return a <code>JTextArea</code> with the error information
+     */
+    private JTextArea createErrorTextArea(Exception e, String message) {
+        StringWriter stringWriter = new StringWriter();
+        e.printStackTrace(new PrintWriter(stringWriter));
+
+        JTextArea errorTextArea = new JTextArea();
+        errorTextArea.setText(message + " Backtrace for developers:\n\n" + stringWriter.toString());
+        errorTextArea.setBorder(BorderFactory.createEtchedBorder());
+        errorTextArea.setEditable(false);
+
+        return errorTextArea;
     }
 
     /**

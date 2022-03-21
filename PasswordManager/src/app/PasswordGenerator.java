@@ -26,6 +26,7 @@ import javax.swing.JScrollBar;
 import javax.swing.JSeparator;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 
 /**
@@ -182,9 +183,21 @@ public class PasswordGenerator extends JFrame {
         });
 
         toPasswordManagerButton.addActionListener(new ActionListener() {
+            /**
+             * Creates a <code>PasswordManager</code> instance and creates
+             * and shows the password manager GUI. Then closes/disposes the 
+             * password generator window.
+             *
+             * @param e the event being processed
+             */
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.out.println("Going to password manager");
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        new PasswordManager("Password Manager").createAndShowWindow();
+                    }
+                });
+                dispose();
             }
         });
 

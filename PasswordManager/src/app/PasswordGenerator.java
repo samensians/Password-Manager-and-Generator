@@ -21,6 +21,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JSeparator;
@@ -173,12 +174,72 @@ public class PasswordGenerator extends JFrame {
         });
 
         savePasswordButton.addActionListener(new ActionListener() {
+            /**
+             * Takes the generated password and allows the user to save it so it can be accessed from
+             * the manager. Requires the user to enter a unique account name to save the password. Also
+             * requires the user to have generated a password so that the user cannot save an empty string.
+             * 
+             * @param e the event being processed
+             */
             @Override
             public void actionPerformed(ActionEvent e) {
-                // TODO:
-                // Give optionPane to ask for account name to associate
-                // password with, then return user into this window
-                System.out.println("Saving password");
+                // Validate that a password has been generated
+                if (generatedPasswordTextField.getText().isBlank()) {
+                    JOptionPane.showMessageDialog(
+                        null, "A password has not been generated", "Password not generated", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                // Create the option pane content
+                JTextField accountNameTextField = new JTextField(20);
+                Object[] message = {
+                    "Account name:", accountNameTextField
+                };
+
+                PasswordManager passwordManager = new PasswordManager("");
+                HashMap<String, String> accountPasswordPairs = passwordManager.readAccountsFile();
+
+                // Show the option pane and carry out input validation
+                // Only close when the user has entered valid inputs or pressed the cancel button
+                while (true) {
+                    int input = JOptionPane.showConfirmDialog(null, message, "Add account", JOptionPane.OK_CANCEL_OPTION);
+
+                    // Do nothing if cancel button is pressed
+                    if (input == JOptionPane.CANCEL_OPTION || input == JOptionPane.CLOSED_OPTION)
+                        return;
+                    
+                    // Get the input account name
+                    String inputAccountName = accountNameTextField.getText();
+
+                    // Validate that the user has entered something in the account name field
+                    if (inputAccountName.isBlank()) {
+                        JOptionPane.showMessageDialog(
+                            null, "Account name must contain characters", "Invalid input(s)", JOptionPane.ERROR_MESSAGE);
+                        continue;
+                    }
+
+                    // Validate that the entered account name is unique
+                    if (accountPasswordPairs.get(inputAccountName) != null) {
+                        JOptionPane.showMessageDialog(
+                            null, "Account name must be unique", "Invalid account name", JOptionPane.ERROR_MESSAGE);
+                        continue;
+                    }
+
+                    // Exit loop once input is valid
+                    break;
+                }
+
+                try {
+                    accountPasswordPairs.put(accountNameTextField.getText(),
+                        passwordManager.encryptPassword(generatedPasswordTextField.getText(), passwordManager.getSecretKey()));
+                } catch (Exception err) {
+                    JOptionPane.showMessageDialog(null, passwordManager.createErrorTextArea(err, "Encryption failed, password not saved."),
+                        "Password save failure", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                passwordManager.updateAccountFile(accountPasswordPairs);
+                JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
+                return;
             }
         });
 

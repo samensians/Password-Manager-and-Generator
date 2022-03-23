@@ -155,7 +155,7 @@ public class PasswordManager extends JFrame {
                 
                 String accountToRemove = accountTable.getValueAt(selectedRowIndex, 0).toString();
                 accountPasswordPairs.remove(accountToRemove);
-                updateAccountsFile(accountPasswordPairs);
+                updateAccountFile(accountPasswordPairs);
                 updateAccountTable(accountPasswordPairs, accountTableModel);
             }
         });
@@ -233,7 +233,7 @@ public class PasswordManager extends JFrame {
      * @throws NoSuchAlgorithmException
      * @throws InvalidKeySpecException
      */
-    private SecretKey getSecretKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
+    SecretKey getSecretKey() throws NoSuchAlgorithmException, InvalidKeySpecException {
         SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         String salt = "testSalt";
         KeySpec secretSpec = new PBEKeySpec(CIPHER_PASS.toCharArray(), salt.getBytes(), 65536, 256);
@@ -253,7 +253,7 @@ public class PasswordManager extends JFrame {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    private String encryptPassword(String password, SecretKey secretKey)
+    String encryptPassword(String password, SecretKey secretKey)
         throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
         IllegalBlockSizeException, BadPaddingException {
         Cipher cipher = Cipher.getInstance("AES");
@@ -290,7 +290,7 @@ public class PasswordManager extends JFrame {
      * @return accountPasswordPairs, a HashMap containing account names as keys
      *         and the accounts assoicated password as the value
      */
-    private HashMap<String, String> readAccountsFile() {
+    HashMap<String, String> readAccountsFile() {
         // Create HashMap of account name and their associated passwords
         HashMap<String, String> accountPasswordPairs = new HashMap<>();
 
@@ -383,7 +383,7 @@ public class PasswordManager extends JFrame {
      *                             function containing the current state of the saved account
      *                             names and passwords
      */
-    private void updateAccountsFile(HashMap<String, String> accountPasswordPairs) {
+    void updateAccountFile(HashMap<String, String> accountPasswordPairs) {
         // Write over accounts.txt with the account names and passwords currently in the HashMap
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter("." + File.separator + "PasswordManager/accounts.txt", false));
@@ -400,7 +400,6 @@ public class PasswordManager extends JFrame {
                 }
             }
             writer.close();
-            JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
         } catch (IOException err) {
             JOptionPane.showMessageDialog(null, createErrorTextArea(err, "Error writing to accounts.txt, closing program."),
                     "Writing to accounts.txt error", JOptionPane.ERROR_MESSAGE);
@@ -432,7 +431,7 @@ public class PasswordManager extends JFrame {
         // Show the option pane and carry out input validation
         // Only close when the user has entered valid inputs or pressed the cancel button
         while (true) {
-            int input = JOptionPane.showConfirmDialog(null, message, "Option", JOptionPane.OK_CANCEL_OPTION);
+            int input = JOptionPane.showConfirmDialog(null, message, "Add account", JOptionPane.OK_CANCEL_OPTION);
 
             // Do nothing if cancel button is pressed
             if (input == JOptionPane.CANCEL_OPTION || input == JOptionPane.CLOSED_OPTION)
@@ -467,7 +466,8 @@ public class PasswordManager extends JFrame {
                 "Password save failure", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        updateAccountsFile(accountPasswordPairs);
+        updateAccountFile(accountPasswordPairs);
+        JOptionPane.showMessageDialog(getContentPane(), "Password successfully added", "Password saved", JOptionPane.INFORMATION_MESSAGE);
         updateAccountTable(accountPasswordPairs, accountTableModel);
     }
 
@@ -479,7 +479,7 @@ public class PasswordManager extends JFrame {
      * @param message a string to display to the user telling them about the error
      * @return a <code>JTextArea</code> with the error information
      */
-    private JTextArea createErrorTextArea(Exception e, String message) {
+    JTextArea createErrorTextArea(Exception e, String message) {
         StringWriter stringWriter = new StringWriter();
         e.printStackTrace(new PrintWriter(stringWriter));
 
